@@ -1,0 +1,20 @@
+build
+mx.scratch
+!.settings
+# VSCode / IDE
+.vscode/
+.settings/
+*.launch
+.clangd
+# CMake / Build
+build/
+CMakeFiles/
+CMakeCache.txt
+cmake_install.cmake
+compile_commands.json
+Makefile
+*.ninja
+
+# STM32CubeMX
+*.mxproject
+*.ioc
