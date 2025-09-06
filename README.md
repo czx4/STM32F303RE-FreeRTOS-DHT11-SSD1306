@@ -1,8 +1,10 @@
 # STM32F303RE-FreeRTOS-DHT11-SSD1306
 
 Reads DHT11 sensor data and displays readings on an SSD1306 OLED using I²C with DMA on STM32F303RE under native FreeRTOS without ST wrapper.
+
 Code should work on other ST devices and you can adjust the DMA,I2C,Timer and GPIO handlers in main.h, but beware that inits of this peripherials
 in main.c need to be also edited(for example the instance parameter). 
+
 Originally generated template with CubeMX without FreeRTOS, then the project was extended with native FreeRTOS and full functionality with HAL.
 The Repository doesn't provide .ioc file as it would break everything by regenerating code.
 
