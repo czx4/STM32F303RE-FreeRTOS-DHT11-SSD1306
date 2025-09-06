@@ -1,24 +1,3 @@
-/* USER CODE BEGIN Header */
-/**
-  ******************************************************************************
-  * @file           : main.h
-  * @brief          : Header for main.c file.
-  *                   This file contains the common defines of the application.
-  ******************************************************************************
-  * @attention
-  *
-  * Copyright (c) 2025 STMicroelectronics.
-  * All rights reserved.
-  *
-  * This software is licensed under terms that can be found in the LICENSE file
-  * in the root directory of this software component.
-  * If no LICENSE file comes with this software, it is provided AS-IS.
-  *
-  ******************************************************************************
-  */
-/* USER CODE END Header */
-
-/* Define to prevent recursive inclusion -------------------------------------*/
 #ifndef __MAIN_H
 #define __MAIN_H
 
@@ -26,37 +5,11 @@
 extern "C" {
 #endif
 
-/* Includes ------------------------------------------------------------------*/
+
 #include "stm32f3xx_hal.h"
 
-/* Private includes ----------------------------------------------------------*/
-/* USER CODE BEGIN Includes */
-
-/* USER CODE END Includes */
-
-/* Exported types ------------------------------------------------------------*/
-/* USER CODE BEGIN ET */
-
-/* USER CODE END ET */
-
-/* Exported constants --------------------------------------------------------*/
-/* USER CODE BEGIN EC */
-
-/* USER CODE END EC */
-
-/* Exported macro ------------------------------------------------------------*/
-/* USER CODE BEGIN EM */
-
-/* USER CODE END EM */
-
-/* Exported functions prototypes ---------------------------------------------*/
 void Error_Handler(void);
 
-/* USER CODE BEGIN EFP */
-
-/* USER CODE END EFP */
-
-/* Private defines -----------------------------------------------------------*/
 #define TMS_Pin GPIO_PIN_13
 #define TMS_GPIO_Port GPIOA
 #define TCK_Pin GPIO_PIN_14
@@ -64,9 +17,25 @@ void Error_Handler(void);
 #define SWO_Pin GPIO_PIN_3
 #define SWO_GPIO_Port GPIOB
 
-/* USER CODE BEGIN Private defines */
 
-/* USER CODE END Private defines */
+#define DHT_PIN GPIO_PIN_0
+#define DHT_PORT GPIOA 
+#define DHT_EXTI EXTI0_IRQn
+#define EXTI_HANDLER EXTI0_IRQHandler
+
+#define TIM_HANDLE htim6
+#define TIM_IRQ_HANDLER TIM6_DAC_IRQHandler
+
+#define I2C_HANDLE hi2c1
+#define I2C_EV_IRQ_HANDLER I2C1_EV_IRQHandler
+
+#define DMA_TX_HANDLE hdma_i2c1_tx
+#define DMA_IRQ DMA1_Channel6_IRQn
+#define DMA_IRQ_HANDLER DMA1_Channel6_IRQHandler
+
+#define OLED_WIDTH 128
+#define oled_addr (0x3c << 1)
+
 
 #ifdef __cplusplus
 }

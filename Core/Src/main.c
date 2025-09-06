@@ -6,12 +6,9 @@
 #include <string.h>
 #include <stdio.h>
 
-#define OLED_WIDTH 128
-#define oled_addr (0x3c << 1)
-
-I2C_HandleTypeDef hi2c1;
-DMA_HandleTypeDef hdma_i2c1_tx;
-TIM_HandleTypeDef htim6;
+I2C_HandleTypeDef I2C_HANDLE;
+DMA_HandleTypeDef DMA_TX_HANDLE;
+TIM_HandleTypeDef TIM_HANDLE;
 TaskHandle_t DHTHandle;
 
 volatile SemaphoreHandle_t i2c_sem;
@@ -29,7 +26,6 @@ static void MX_TIM6_Init(void);
 void HAL_I2C_MasterTxCpltCallback(I2C_HandleTypeDef *hi2c);
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim);
 void HAL_GPIO_EXTI_Callback(uint16_t pin);
-void EXTI0_IRQHandler(void);
 
 void i2c_print(void * arg);
 void dht11_read(void * arg);
@@ -89,7 +85,7 @@ void i2c_print(void * argument)
 	  0x8D, 0x14,// charge pump
 	  0xAF       // Display ON
 	};
-	char buffer[100]={0};
+	char buffer[40]={0};
 	uint8_t i2c_buf[40]={0};
   uint8_t set_cursor[] = {
     0x00, // command
@@ -99,13 +95,13 @@ void i2c_print(void * argument)
   };
 
 	if(xSemaphoreTake(i2c_sem,portMAX_DELAY)==pdTRUE){
-		HAL_I2C_Master_Transmit_DMA(&hi2c1, oled_addr, init_oled,sizeof(init_oled));
+		HAL_I2C_Master_Transmit_DMA(&I2C_HANDLE, oled_addr, init_oled,sizeof(init_oled));
 	}
   if(xSemaphoreTake(i2c_sem,portMAX_DELAY)==pdTRUE){
-		HAL_I2C_Master_Transmit_DMA(&hi2c1, oled_addr,set_cursor, sizeof(set_cursor));
+		HAL_I2C_Master_Transmit_DMA(&I2C_HANDLE, oled_addr,set_cursor, sizeof(set_cursor));
 	}
 	if(xSemaphoreTake(i2c_sem,portMAX_DELAY)==pdTRUE){
-		HAL_I2C_Master_Transmit_DMA(&hi2c1, oled_addr,icons, sizeof(icons));
+		HAL_I2C_Master_Transmit_DMA(&I2C_HANDLE, oled_addr,icons, sizeof(icons));
 	}
   for(;;)
   {
@@ -120,10 +116,10 @@ void i2c_print(void * argument)
       set_cursor[3] = 0x12;
 			draw_string(&i2c_buf[1], buffer);
 			if(xSemaphoreTake(i2c_sem,portMAX_DELAY)==pdTRUE){
-				HAL_I2C_Master_Transmit_DMA(&hi2c1, oled_addr, set_cursor, sizeof(set_cursor));
+				HAL_I2C_Master_Transmit_DMA(&I2C_HANDLE, oled_addr, set_cursor, sizeof(set_cursor));
 			}
 			if(xSemaphoreTake(i2c_sem,portMAX_DELAY)==pdTRUE){
-				HAL_I2C_Master_Transmit_DMA(&hi2c1, oled_addr, i2c_buf, sizeof(i2c_buf));
+				HAL_I2C_Master_Transmit_DMA(&I2C_HANDLE, oled_addr, i2c_buf, sizeof(i2c_buf));
 			}
     }
     if(new_temp!=temp){
@@ -136,10 +132,10 @@ void i2c_print(void * argument)
 				set_cursor[1] = 0xB2;
         set_cursor[2] = 0x04;
         set_cursor[3] = 0x12;
-				HAL_I2C_Master_Transmit_DMA(&hi2c1, oled_addr, set_cursor, sizeof(set_cursor));
+				HAL_I2C_Master_Transmit_DMA(&I2C_HANDLE, oled_addr, set_cursor, sizeof(set_cursor));
 			}
 			if(xSemaphoreTake(i2c_sem,portMAX_DELAY)==pdTRUE){
-				HAL_I2C_Master_Transmit_DMA(&hi2c1, oled_addr, i2c_buf, sizeof(i2c_buf));
+				HAL_I2C_Master_Transmit_DMA(&I2C_HANDLE, oled_addr, i2c_buf, sizeof(i2c_buf));
 			}
     }
 			if(xSemaphoreTake(i2c_sem,portMAX_DELAY)==pdTRUE){
@@ -157,36 +153,36 @@ void dht11_read(void * argument)
 	uint8_t time;
 
 	GPIO_InitTypeDef GPIO_InitStruct={0};
-	GPIO_InitStruct.Pin=GPIO_PIN_0;
+	GPIO_InitStruct.Pin=DHT_PIN;
 	GPIO_InitStruct.Mode=GPIO_MODE_OUTPUT_OD;
 	GPIO_InitStruct.Pull = GPIO_NOPULL;
 	GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-	HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
+	HAL_GPIO_Init(DHT_PORT, &GPIO_InitStruct);
 
-	HAL_NVIC_SetPriority(EXTI0_IRQn, 5, 0);
-	HAL_NVIC_EnableIRQ(EXTI0_IRQn);
+	HAL_NVIC_SetPriority(DHT_EXTI, 5, 0);
+	HAL_NVIC_EnableIRQ(DHT_EXTI);
 
   for(;;)
   {
 	if(xSemaphoreTake(dht_sem,portMAX_DELAY)==pdTRUE){
 	memset(data,0,5*sizeof(data[0]));
-	__HAL_TIM_SET_COUNTER(&htim6,0);
-	__HAL_TIM_SET_AUTORELOAD(&htim6,20000);
-	__HAL_TIM_CLEAR_FLAG(&htim6, TIM_FLAG_UPDATE);
-	HAL_GPIO_WritePin(GPIOA, GPIO_PIN_0, GPIO_PIN_RESET);
-	HAL_TIM_Base_Start_IT(&htim6);
+	__HAL_TIM_SET_COUNTER(&TIM_HANDLE,0);
+	__HAL_TIM_SET_AUTORELOAD(&TIM_HANDLE,20000);
+	__HAL_TIM_CLEAR_FLAG(&TIM_HANDLE, TIM_FLAG_UPDATE);
+	HAL_GPIO_WritePin(DHT_PORT, DHT_PIN, GPIO_PIN_RESET);
+	HAL_TIM_Base_Start_IT(&TIM_HANDLE);
 	}
 	if(xSemaphoreTake(dht_sem,portMAX_DELAY)==pdTRUE){
-		HAL_GPIO_WritePin(GPIOA,GPIO_PIN_0, GPIO_PIN_SET);
-		__HAL_TIM_SET_AUTORELOAD(&htim6,40);
+		HAL_GPIO_WritePin(DHT_PORT,DHT_PIN, GPIO_PIN_SET);
+		__HAL_TIM_SET_AUTORELOAD(&TIM_HANDLE,40);
 	}
 	if(xSemaphoreTake(dht_sem,portMAX_DELAY)==pdTRUE){
-		__HAL_TIM_SET_AUTORELOAD(&htim6,65535);
+		__HAL_TIM_SET_AUTORELOAD(&TIM_HANDLE,65535);
 		GPIO_InitTypeDef GPIO_InitStruct={0};
-		GPIO_InitStruct.Pin=GPIO_PIN_0;
+		GPIO_InitStruct.Pin=DHT_PIN;
 		GPIO_InitStruct.Mode=GPIO_MODE_IT_RISING_FALLING;
 		GPIO_InitStruct.Pull=GPIO_NOPULL;
-		HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
+		HAL_GPIO_Init(DHT_PORT, &GPIO_InitStruct);
 	}
 
   ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
@@ -195,11 +191,11 @@ void dht11_read(void * argument)
 
 	for(uint8_t data_index=0;data_index<40;){
     ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
-		if(HAL_GPIO_ReadPin(GPIOA, GPIO_PIN_0)){//rising
-			__HAL_TIM_SET_COUNTER(&htim6,0);
+		if(HAL_GPIO_ReadPin(DHT_PORT, DHT_PIN)){//rising
+			__HAL_TIM_SET_COUNTER(&TIM_HANDLE,0);
 		}
 		else{//falling
-			time=__HAL_TIM_GET_COUNTER(&htim6);
+			time=__HAL_TIM_GET_COUNTER(&TIM_HANDLE);
 			data[data_index/8]<<=1;
 			if(time>50){
 				data[data_index/8]|=1;
@@ -208,19 +204,19 @@ void dht11_read(void * argument)
 		}
 	}
 
-	__HAL_TIM_SET_COUNTER(&htim6,0);
-	__HAL_TIM_SET_AUTORELOAD(&htim6,50);
+	__HAL_TIM_SET_COUNTER(&TIM_HANDLE,0);
+	__HAL_TIM_SET_AUTORELOAD(&TIM_HANDLE,50);
 	if(xSemaphoreTake(dht_sem,portMAX_DELAY)==pdTRUE){
-    HAL_TIM_Base_Stop_IT(&htim6);
-    __HAL_TIM_SET_COUNTER(&htim6,0);
-    __HAL_TIM_SET_AUTORELOAD(&htim6,65535);
+    HAL_TIM_Base_Stop_IT(&TIM_HANDLE);
+    __HAL_TIM_SET_COUNTER(&TIM_HANDLE,0);
+    __HAL_TIM_SET_AUTORELOAD(&TIM_HANDLE,65535);
     GPIO_InitTypeDef GPIO_InitStruct={0};
-    GPIO_InitStruct.Pin=GPIO_PIN_0;
+    GPIO_InitStruct.Pin=DHT_PIN;
     GPIO_InitStruct.Mode=GPIO_MODE_OUTPUT_OD;
     GPIO_InitStruct.Pull = GPIO_NOPULL;
     GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-    HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
-    HAL_GPIO_WritePin(GPIOA,GPIO_PIN_0, GPIO_PIN_SET);
+    HAL_GPIO_Init(DHT_PORT, &GPIO_InitStruct);
+    HAL_GPIO_WritePin(DHT_PORT,DHT_PIN, GPIO_PIN_SET);
     if ((data[0] + data[1] + data[2] + data[3]) == data[4]){
       new_humi=data[0];
       new_temp=data[2];
@@ -246,18 +242,15 @@ void draw_string(uint8_t *i2c_buf,char *str_buf){
 }
 
 void HAL_I2C_MasterTxCpltCallback(I2C_HandleTypeDef *hi2c){
-  if(hi2c->Instance==I2C1){
+  if(hi2c->Instance==I2C_HANDLE.Instance){
 	  BaseType_t higher=pdFALSE;
 	  xSemaphoreGiveFromISR(i2c_sem,&higher);
 	  portYIELD_FROM_ISR(higher);
   }
 }
 
-void EXTI0_IRQHandler(void) {
-	HAL_GPIO_EXTI_IRQHandler(GPIO_PIN_0);
-}
 void HAL_GPIO_EXTI_Callback(uint16_t pin){
-	if(pin==GPIO_PIN_0){
+	if(pin==DHT_PIN){
 		BaseType_t higher=pdFALSE;
     vTaskNotifyGiveFromISR(DHTHandle,&higher);
 		portYIELD_FROM_ISR(higher);
@@ -266,7 +259,7 @@ void HAL_GPIO_EXTI_Callback(uint16_t pin){
 
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 {
-  if(htim->Instance == TIM6){
+  if(htim->Instance ==TIM_HANDLE.Instance ){
 		BaseType_t higher=pdFALSE;
 		xSemaphoreGiveFromISR(dht_sem,&higher);
 		portYIELD_FROM_ISR(higher);
@@ -318,26 +311,26 @@ void SystemClock_Config(void)
 
 static void MX_I2C1_Init(void)
 {
-  hi2c1.Instance = I2C1;
-  hi2c1.Init.Timing = 0x00201D2B;
-  hi2c1.Init.OwnAddress1 = 0;
-  hi2c1.Init.AddressingMode = I2C_ADDRESSINGMODE_7BIT;
-  hi2c1.Init.DualAddressMode = I2C_DUALADDRESS_DISABLE;
-  hi2c1.Init.OwnAddress2 = 0;
-  hi2c1.Init.OwnAddress2Masks = I2C_OA2_NOMASK;
-  hi2c1.Init.GeneralCallMode = I2C_GENERALCALL_DISABLE;
-  hi2c1.Init.NoStretchMode = I2C_NOSTRETCH_DISABLE;
-  if (HAL_I2C_Init(&hi2c1) != HAL_OK)
+  I2C_HANDLE.Instance = I2C1;
+  I2C_HANDLE.Init.Timing = 0x00201D2B;
+  I2C_HANDLE.Init.OwnAddress1 = 0;
+  I2C_HANDLE.Init.AddressingMode = I2C_ADDRESSINGMODE_7BIT;
+  I2C_HANDLE.Init.DualAddressMode = I2C_DUALADDRESS_DISABLE;
+  I2C_HANDLE.Init.OwnAddress2 = 0;
+  I2C_HANDLE.Init.OwnAddress2Masks = I2C_OA2_NOMASK;
+  I2C_HANDLE.Init.GeneralCallMode = I2C_GENERALCALL_DISABLE;
+  I2C_HANDLE.Init.NoStretchMode = I2C_NOSTRETCH_DISABLE;
+  if (HAL_I2C_Init(&I2C_HANDLE) != HAL_OK)
   {
     Error_Handler();
   }
 
-  if (HAL_I2CEx_ConfigAnalogFilter(&hi2c1, I2C_ANALOGFILTER_ENABLE) != HAL_OK)
+  if (HAL_I2CEx_ConfigAnalogFilter(&I2C_HANDLE, I2C_ANALOGFILTER_ENABLE) != HAL_OK)
   {
     Error_Handler();
   }
 
-  if (HAL_I2CEx_ConfigDigitalFilter(&hi2c1, 0) != HAL_OK)
+  if (HAL_I2CEx_ConfigDigitalFilter(&I2C_HANDLE, 0) != HAL_OK)
   {
     Error_Handler();
   }
@@ -348,18 +341,18 @@ static void MX_TIM6_Init(void)
 {
   TIM_MasterConfigTypeDef sMasterConfig = {0};
 
-  htim6.Instance = TIM6;
-  htim6.Init.Prescaler = 71;
-  htim6.Init.CounterMode = TIM_COUNTERMODE_UP;
-  htim6.Init.Period = 65535;
-  htim6.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
-  if (HAL_TIM_Base_Init(&htim6) != HAL_OK)
+  TIM_HANDLE.Instance = TIM6;
+  TIM_HANDLE.Init.Prescaler = 71;
+  TIM_HANDLE.Init.CounterMode = TIM_COUNTERMODE_UP;
+  TIM_HANDLE.Init.Period = 65535;
+  TIM_HANDLE.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
+  if (HAL_TIM_Base_Init(&TIM_HANDLE) != HAL_OK)
   {
     Error_Handler();
   }
   sMasterConfig.MasterOutputTrigger = TIM_TRGO_UPDATE;
   sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
-  if (HAL_TIMEx_MasterConfigSynchronization(&htim6, &sMasterConfig) != HAL_OK)
+  if (HAL_TIMEx_MasterConfigSynchronization(&TIM_HANDLE, &sMasterConfig) != HAL_OK)
   {
     Error_Handler();
   }
@@ -371,8 +364,8 @@ static void MX_DMA_Init(void)
 
   __HAL_RCC_DMA1_CLK_ENABLE();
 
-  HAL_NVIC_SetPriority(DMA1_Channel6_IRQn, 5, 0);
-  HAL_NVIC_EnableIRQ(DMA1_Channel6_IRQn);
+  HAL_NVIC_SetPriority(DMA_IRQ, 5, 0);
+  HAL_NVIC_EnableIRQ(DMA_IRQ);
 
 }
 
